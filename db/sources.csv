@@ -1,0 +1,26 @@
+resources_type,name,url,language,type,description,source_tier,fetcher,is_active
+Institution,台灣人工智慧學校,https://aiacademy.tw/feed/,zh,Industry,台灣AI教育指標與產業交流機構，定期舉辦論壇與講座。,C,rss,true
+Institution,財團法人人工智慧科技基金會(AIF),https://edge.aif.tw/rss/,zh,Industry,聚焦產業 AI 化政策、調查與產業趨勢洞察。,C,rss,true
+Community,Hugging Face blog,https://huggingface.co/blog/feed.xml,en,Technical,全球最大AI開源社群，發布模型與研究動態。,A,rss,true
+Media,TechCrunch (category: AI),https://techcrunch.com/category/artificial-intelligence/feed/,en,News,關注 AI 新創、市場動態與投資趨勢。,B,rss,true
+Official,OpenAI Research,https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_openai_research.xml,en,Research,OpenAI 官方研究與模型發展說明。,A,rss,true
+Official,OpenAI Engineering,https://openai.com/news/engineering/rss.xml,en,Technical,OpenAI 工程實務與系統設計分享。,A,rss,true
+Official,Surge AI Blog,https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_blogsurgeai.xml,en,News,Surge AI 官方部落格，分享資料標註、模型評測與開發實務。,A,rss,true
+Official,Anthropic News,https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml,en,News,Anthropic 官方消息與產品動態。,A,rss,true
+Official,Anthropic Engineering,https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_engineering.xml,en,Technical,Anthropic工程團隊分享AI系統設計、模型部署與可靠性實務。,A,rss,true
+Official,Anthropic Research,https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_research.xml,en,Research,Anthropic AI 對齊與研究成果。,A,rss,true
+Official,Google Research Blog,https://research.google/blog/rss,en,News,Google 旗下 AI 與科學研究發表。,A,rss,true
+Official,Google Developer Blog (category: AI),https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_google_ai.xml,en,Technical,Google AI 工程與開發者資源。,A,rss,true
+Official,Google blog,https://blog.google/rss,en,News,Google AI 官方網站。,A,rss,true
+Official,Microsoft research blog,https://www.microsoft.com/en-us/research/blog/rss,en,Research,微軟研究院 AI 與跨域研究。,A,rss,true
+Official,Claude Blog,https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_claude.xml,en,News,Claude 官方網站。,A,rss,true
+Institution,arXiv(category:CS.AI),http://export.arxiv.org/api/query?search_query=cat:cs.AI,en,Research,全球科學家學術資料庫，收錄電腦科學、物理學、數學、定向科學、金融學相關學術資料庫。,A,arxiv,true
+Media,數位時代(Business Next),https://www.bnext.com.tw/rss,zh,News,台灣科技與數位轉型新聞。,B,rss,true
+Media,科技報橘(TechOrange),https://techorange.com/rss,zh,News,新創、AI、科技趨勢評論。,B,rss,true
+Official,Cloudflare blog,https://blog.cloudflare.com/rss/,en,News,Cloudflare 官方技術部落格，涵蓋 AI、網路安全、邊緣運算與效能最佳化。,A,rss,true
+Institution,ML CMU,https://blog.ml.cmu.edu/feed/,en,Research,CMU 機器學習系官方部落格，發布前沿研究、師生專題與學術活動。,C,rss,true
+Institution,DeepMind blog,https://deepmind.com/blog/feed/,en,Technical,DeepMind 官方研究與模型突破。,C,rss,true
+Institution,MIT News (category: AI),http://news.mit.edu/rss/topic/artificial-intelligence2,en,Research,MIT AI 研究與應用新聞,C,rss,true
+Media,AI News,https://www.artificialintelligence-news.com/rss,en,News,國際AI新聞媒體，涵蓋企業動態、政策法規與產業應用。,B,rss,true
+Institution,IEEE spectrum,https://spectrum.ieee.org/topic/artificial-intelligence/feed,en,Research,AI 技術工程與產業分析。,C,rss,true
+Institution,李宏毅教授​(公開課程教材),https://speech.ee.ntu.edu.tw/~hylee/ml/2026-spring.php,zh,Research,台大機器學習完整公開課程。,C,skip,false

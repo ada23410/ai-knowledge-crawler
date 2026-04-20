@@ -1,0 +1,21 @@
+# 環境設定（千萬不要上傳！裡面有密碼）
+.env
+ 
+# Python 編譯快取
+__pycache__/
+*.pyc
+*.pyo
+ 
+# Log 檔案
+logs/
+*.log
+ 
+# 資料庫資料
+postgres_data/
+ 
+# macOS
+.DS_Store
+ 
+# IDE
+.vscode/
+.idea/

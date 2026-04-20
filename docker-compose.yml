@@ -1,0 +1,44 @@
+version: "3.9"
+
+# services = 你要啟動的服務清單
+# 就像你前端開發時同時跑 vite dev + json-server
+services:
+
+  # ── PostgreSQL 資料庫服務 ──
+  db:
+    image: postgres:16-alpine        # 使用官方 PostgreSQL 映像
+    container_name: ai_knowledge_db
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"                  # 本機 5432 ↔ 容器 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # 資料持久化（重啟不會消失）
+      - ./db:/docker-entrypoint-initdb.d         # 啟動時自動執行 .sql 檔
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── 爬蟲服務 ──
+  crawler:
+    build:
+      context: ./crawler             # Dockerfile 位置
+    container_name: ai_knowledge_crawler
+    env_file: .env                   # 讀取 .env 的所有設定
+    environment:
+      POSTGRES_HOST: db              # 容器內用服務名稱（不是 localhost！）
+    depends_on:
+      db:
+        condition: service_healthy   # 等 DB 健康才啟動爬蟲
+    volumes:
+      - ./crawler/logs:/app/logs     # 把容器內的 logs 同步到本機
+    restart: unless-stopped
+
+# volumes 宣告（讓 Docker 管理資料儲存）
+volumes:
+  postgres_data:
