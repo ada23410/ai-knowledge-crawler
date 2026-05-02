@@ -37,6 +37,23 @@ services:
         condition: service_healthy   # 等 DB 健康才啟動爬蟲
     volumes:
       - ./crawler/logs:/app/logs     # 把容器內的 logs 同步到本機
+      - ./db:/db
+    dns:
+    - 8.8.8.8
+    - 8.8.4.4   
+    restart: unless-stopped
+
+    # ── pgAdmin 網頁版資料庫管理介面 ──
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ai_knowledge_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
     restart: unless-stopped
 
 # volumes 宣告（讓 Docker 管理資料儲存）

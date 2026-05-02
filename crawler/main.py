@@ -326,7 +326,7 @@ def fetch_arxiv(source: dict, conn) -> dict:
     我們用官方的 Python SDK（arxiv 套件），
     不用手動解析 XML，比 RSS 更方便
     """
-    logger.info(f"📚 開始抓取 arXiv：{source['name']}")
+    logger.info(f"開始抓取 arXiv：{source['name']}")
     
     max_results = int(os.getenv("ARXIV_MAX_RESULTS", 50))
     articles_new = 0
@@ -379,7 +379,7 @@ def fetch_arxiv(source: dict, conn) -> dict:
             
             if save_article(conn, article_data):
                 articles_new += 1
-                logger.info(f"   ✅ 新論文：{title[:50]}...")
+                logger.info(f"新論文：{title[:50]}...")
 
         return {
             "source_id":      source["id"],
@@ -391,7 +391,7 @@ def fetch_arxiv(source: dict, conn) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"   ❌ arXiv 抓取失敗：{e}")
+        logger.error(f"arXiv 抓取失敗：{e}")
         return {
             "source_id":      source["id"],
             "source_name":    source["name"],
@@ -418,7 +418,7 @@ def run_daily_fetch():
     5. 輸出今日統計摘要
     """
     logger.info("=" * 50)
-    logger.info(f"🚀 開始每日蒐集任務 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"開始每日蒐集任務 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 50)
 
     conn = None
@@ -460,7 +460,7 @@ def run_daily_fetch():
 
         # ── 輸出今日摘要 ──
         logger.info("=" * 50)
-        logger.info(f"📊 今日蒐集完成")
+        logger.info(f"今日蒐集完成")
         logger.info(f"   新增文章：{total_new} 篇")
         logger.info(f"   失敗來源：{total_failed} 個")
         logger.info("=" * 50)
@@ -473,7 +473,7 @@ def run_daily_fetch():
         # 確保資料庫連線一定會被關閉（釋放資源）
         if conn:
             conn.close()
-            logger.info("🔒 資料庫連線已關閉")
+            logger.info("資料庫連線已關閉")
 
 
 # ══════════════════════════════════════════════════
@@ -494,11 +494,11 @@ def init_db():
         with conn.cursor() as cur:
             # 讀取並執行 SQL 檔案
             # open() ≈ JS 的 fs.readFileSync()
-            with open("../db/init.sql", "r", encoding="utf-8") as f:
+            with open("/db/init.sql", "r", encoding="utf-8") as f:
                 sql = f.read()
             cur.execute(sql)
             conn.commit()
-            logger.info("✅ 資料表建立完成")
+            logger.info("資料表建立完成")
 
         # 匯入來源清單（如果 sources 表是空的）
         seed_sources(conn)
@@ -529,11 +529,10 @@ def seed_sources(conn):
     # __file__ = 目前這個 Python 檔案的路徑（main.py）
     # os.path.dirname() = 取得資料夾路徑
     # os.path.join() ≈ JS 的 path.join()
-    base_dir  = os.path.dirname(os.path.abspath(__file__))
-    csv_path  = os.path.join(base_dir, "..", "db", "sources.csv")
+    csv_path = "/db/sources.csv"
 
     if not os.path.exists(csv_path):
-        logger.error(f"❌ 找不到 sources.csv：{csv_path}")
+        logger.error(f" 找不到 sources.csv：{csv_path}")
         logger.error("   請確認 db/sources.csv 存在")
         return
 
@@ -569,7 +568,7 @@ def seed_sources(conn):
         """, sources_data)
         conn.commit()
 
-    logger.info(f"✅ 已從 sources.csv 匯入 {len(sources_data)} 筆來源")
+    logger.info(f"已從 sources.csv 匯入 {len(sources_data)} 筆來源")
 
 
 # ══════════════════════════════════════════════════
@@ -618,7 +617,7 @@ if __name__ == "__main__":
         fetch_minute = int(os.getenv("FETCH_MINUTE", 0))
         run_time     = f"{fetch_hour:02d}:{fetch_minute:02d}"
 
-        logger.info(f"⏰ 排程模式啟動，每天 {run_time} 執行")
+        logger.info(f"排程模式啟動，每天 {run_time} 執行")
         
         # schedule.every().day.at("08:00") = 每天早上 8 點執行
         schedule.every().day.at(run_time).do(run_daily_fetch)
