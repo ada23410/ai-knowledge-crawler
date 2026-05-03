@@ -18,6 +18,7 @@ import os
 import logging
 import numpy as np
 import psycopg2
+import sys
 from dotenv import load_dotenv
 
 # sklearn = scikit-learn，機器學習套件
@@ -48,7 +49,7 @@ logger = logging.getLogger(__name__)
 DEDUP_THRESHOLD = float(os.getenv("DUPLICATE_THRESHOLD", "0.15"))
 
 # 幾天內的文章才需要做去重
-DAYS_TO_CHECK = int(os.getenv("DAYS_TO_CHECK_DUPLICATE", "14"))
+DAYS_TO_CHECK = int(os.getenv("DAYS_TO_CHECK_DUPLICATE", "7"))
 
 # GCP 設定
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
@@ -382,6 +383,9 @@ def run_deduplication():
 # ══════════════════════════════════════════════
 
 if __name__ == "__main__":
+    import schedule
+    import time
+
     os.makedirs("logs", exist_ok=True)
 
     logging.basicConfig(
@@ -393,4 +397,16 @@ if __name__ == "__main__":
         ]
     )
 
-    run_deduplication()
+    mode = sys.argv[1] if len(sys.argv) > 1 else "schedule"
+
+    if mode == "now":
+        # 立即執行一次（測試用）
+        run_deduplication()
+    else:
+        # 排程模式：每週一早上 09:00 執行
+        logger.info("排程模式啟動，每週一 09:00 執行去重")
+        schedule.every().monday.at("09:00").do(run_deduplication)
+
+        while True:
+            schedule.run_pending()
+            time.sleep(60)
