@@ -110,10 +110,10 @@ def save_article(conn, article_data: dict) -> bool:
         cur.execute("""
             INSERT INTO articles (
                 source_id, title, url, content, summary,
-                published_at, language, content_type, source_tier
+                published_at, language, content_type, source_tier, governance_status
             ) VALUES (
                 %(source_id)s, %(title)s, %(url)s, %(content)s, %(summary)s,
-                %(published_at)s, %(language)s, %(content_type)s, %(source_tier)s
+                %(published_at)s, %(language)s, %(content_type)s, %(source_tier)s, %(governance_status)s
             )
         """, article_data)
         # commit = 確認寫入（不 commit 的話資料不會真的存進去）
@@ -235,6 +235,7 @@ def fetch_rss(source: dict, conn) -> dict:
                 "language":     source["language"],
                 "content_type": "rss",
                 "source_tier":  source["source_tier"],
+                "governance_status": "pending",
             }
             
             # save_article 回傳 True = 新文章存入成功

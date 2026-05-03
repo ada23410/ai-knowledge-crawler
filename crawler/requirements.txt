@@ -1,26 +1,28 @@
 # 資料庫連線
-psycopg2-binary==2.9.9       # Python 連接 PostgreSQL 的套件
-sqlalchemy==2.0.30            # 讓你用 Python 物件操作資料庫，不用寫 SQL
+psycopg2-binary==2.9.9        # Python 連接 PostgreSQL 的套件
+sqlalchemy==2.0.30             # 讓你用 Python 物件操作資料庫，不用寫 SQL
 
 # RSS 抓取
-feedparser==6.0.11            # 解析 RSS/XML feed
-requests==2.32.3              # 發送 HTTP 請求（抓網頁）
-trafilatura==1.12.0           # 從網頁 URL 萃取純文字內容
+feedparser==6.0.11             # 解析 RSS/XML feed
+requests==2.32.3               # 發送 HTTP 請求（抓網頁）
+trafilatura==1.12.0            # 從網頁 URL 萃取純文字內容
 
 # 語意去重需要的套件
-sentence-transformers==3.0.1   # 本地 embedding 模型（合規）
-scikit-learn==1.5.0            # 計算 cosine similarity
-scipy==1.13.0                  # Average Linkage clustering
-numpy==1.26.4                  # 向量運算
+# sentence-transformers==3.0.1  
+# torch                        
+google-cloud-aiplatform==1.49.0 # 新增：Vertex AI SDK，呼叫 gemini-embedding-001
+scikit-learn==1.5.0             # 計算 cosine similarity
+scipy==1.13.0                   # Average Linkage clustering
+numpy==1.26.4                   # 向量運算
 
 # arXiv 學術論文
-arxiv==2.1.3                  # arXiv 官方 Python SDK
+arxiv==2.1.3                   # arXiv 官方 Python SDK
 
 # 文字處理
-python-dateutil==2.9.0        # 解析各種日期格式
+python-dateutil==2.9.0         # 解析各種日期格式
 
 # 環境變數
-python-dotenv==1.0.1          # 讀取 .env 設定檔
+python-dotenv==1.0.1           # 讀取 .env 設定檔
 
 # 排程
-schedule==1.2.2               # 定時執行任務（像 cron 但更簡單）
+schedule==1.2.2                # 定時執行任務（像 cron 但更簡單）

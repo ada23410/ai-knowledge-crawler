@@ -19,3 +19,7 @@ postgres_data/
 # IDE
 .vscode/
 .idea/
+
+# vertex-ai
+gcp-service-account.json
+ai-knowledge-495212-4d906e4ec2e5.json
