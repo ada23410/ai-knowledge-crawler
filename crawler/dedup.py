@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 # 去重 threshold：越小越嚴格，越大越容易誤判
 # Bob 建議 0.15，我們先用這個值
-DEDUP_THRESHOLD = float(os.getenv("DUPLICATE_THRESHOLD", "0.3"))
+DEDUP_THRESHOLD = float(os.getenv("DUPLICATE_THRESHOLD", "0.15"))
 
 # 幾天內的文章才需要做去重
 # 不需要把所有歷史文章都比對，只比對最近的
