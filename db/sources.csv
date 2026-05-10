@@ -16,6 +16,7 @@ Official,Microsoft research blog,https://www.microsoft.com/en-us/research/blog/r
 Official,Claude Blog,https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_claude.xml,en,News,Claude 官方網站。,A,rss,true
 Institution,arXiv(category:CS.AI),http://export.arxiv.org/api/query?search_query=cat:cs.AI,en,Research,全球科學家學術資料庫，收錄電腦科學、物理學、數學、定向科學、金融學相關學術資料庫。,A,arxiv,true
 Media,數位時代(Business Next),https://www.bnext.com.tw/rss,zh,News,台灣科技與數位轉型新聞。,B,rss,false
+Media,未來商務(Future Commerce),https://rss.bnextmedia.com.tw/feed/fc,B,rss,true
 Media,科技報橘(TechOrange),https://techorange.com/rss,zh,News,新創、AI、科技趨勢評論。,B,rss,true
 Official,Cloudflare blog,https://blog.cloudflare.com/rss/,en,News,Cloudflare 官方技術部落格，涵蓋 AI、網路安全、邊緣運算與效能最佳化。,A,rss,true
 Institution,ML CMU,https://blog.ml.cmu.edu/feed/,en,Research,CMU 機器學習系官方部落格，發布前沿研究、師生專題與學術活動。,C,rss,true
