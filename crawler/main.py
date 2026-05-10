@@ -27,6 +27,7 @@ import arxiv                 # arXiv 官方 SDK
 
 import psycopg2              # 連接 PostgreSQL
 from psycopg2.extras import execute_values  # 批次寫入資料用
+from tagging import ArticleTagger
 
 # ── 讀取 .env 設定 ─────────────────────────────────
 # 這行讓 Python 讀取專案根目錄的 .env 檔案
@@ -418,10 +419,22 @@ def run_daily_fetch():
     4. 記錄每個來源的執行結果
     5. 輸出今日統計摘要
     """
-    logger.info("=" * 50)
-    logger.info(f"開始每日蒐集任務 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info("=" * 50)
+    # ── 執行自動打標（approved 文章）──
+    logger.info("開始執行自動打標...")
+    tagger = ArticleTagger()
+    try:
+        tagger.run()
+    finally:
+        tagger.close()
+    logger.info("自動打標完成")
 
+    # 輸出今日摘要
+    logger.info("=" * 50)
+    logger.info(f"今日蒐集完成")
+    logger.info(f"   新增文章：{total_new} 篇")
+    logger.info(f"   失敗來源：{total_failed} 個")
+    logger.info("=" * 50)
+    
     conn = None
     total_new = 0
     total_failed = 0
