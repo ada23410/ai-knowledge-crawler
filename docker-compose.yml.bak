@@ -32,20 +32,18 @@ services:
     env_file: .env                   # 讀取 .env 的所有設定
     environment:
       POSTGRES_HOST: db              # 容器內用服務名稱（不是 localhost！）
-      GOOGLE_APPLICATION_CREDENTIALS: /app/credentials/gcp-key.json
     depends_on:
       db:
         condition: service_healthy   # 等 DB 健康才啟動爬蟲
     volumes:
       - ./crawler/logs:/app/logs     # 把容器內的 logs 同步到本機
       - ./db:/db
-      - ./ai-knowledge-495212-4d906e4ec2e5.json:/app/credentials/gcp-key.json:ro
     dns:
-      - 8.8.8.8
-      - 8.8.4.4
+    - 8.8.8.8
+    - 8.8.4.4   
     restart: unless-stopped
 
-  # ── pgAdmin 網頁版資料庫管理介面 ──
+    # ── pgAdmin 網頁版資料庫管理介面 ──
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: ai_knowledge_pgadmin

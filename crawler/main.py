@@ -1,21 +1,12 @@
 """
 AI 知識庫 蒐集層主程式
-===================================================
-功能：定時從 RSS Feed 和 arXiv 抓取 AI 相關文章
-     並存入 PostgreSQL 資料庫
-
-作者提示（給前端工程師的說明）：
-  - Python 的 import  ≈  JS 的 import
-  - Python 的 def     ≈  JS 的 function
-  - Python 的 class   ≈  JS 的 class
-  - Python 的 print() ≈  JS 的 console.log()
-  - Python 用縮排（4個空格）代替 {} 來定義區塊
+功能：定時從 RSS Feed 和 arXiv 抓取 AI 相關文章並存入 PostgreSQL 資料庫
 """
 
-# ── 引入套件 ──────────────────────────────────────
+# 引入套件
 import os                    # 讀取系統環境變數
-import logging               # 記錄 log（比 print 更專業）
-import schedule              # 排程：幾點執行什麼
+import logging               # 記錄 log
+import schedule              # 排程工具
 import time                  # 時間相關操作
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv  # 讀取 .env 檔案
@@ -29,16 +20,11 @@ import psycopg2              # 連接 PostgreSQL
 from psycopg2.extras import execute_values  # 批次寫入資料用
 from tagging import ArticleTagger
 
-# ── 讀取 .env 設定 ─────────────────────────────────
+# 讀取 .env 設定
 # 這行讓 Python 讀取專案根目錄的 .env 檔案
-# 就像你在 Vite 專案裡 .env 會被自動讀取一樣
 load_dotenv()
 
-# ── 設定 Log 系統 ──────────────────────────────────
-# logging 比 print 好在哪？
-# - 可以設定等級（DEBUG/INFO/WARNING/ERROR）
-# - 自動加上時間戳記
-# - 可以同時輸出到畫面和檔案
+# 設定 Log 系統
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -50,17 +36,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-# ══════════════════════════════════════════════════
 # 1. 資料庫連線管理
-# ══════════════════════════════════════════════════
-
 def get_db_connection():
     """
     建立 PostgreSQL 資料庫連線
-    
-    前端類比：這就像建立一個 API client
-    return 出來的 conn 就是你後續操作資料庫的工具
     """
     conn = psycopg2.connect(
         host=os.getenv("POSTGRES_HOST", "localhost"),
@@ -77,13 +56,6 @@ def article_exists(conn, url: str) -> bool:
     檢查這篇文章是否已經存在資料庫（用 URL 判斷）
     
     用途：去重。同一篇文章不要存兩次。
-    
-    參數說明：
-      conn  = 資料庫連線物件
-      url   = 文章網址（字串）
-    回傳：
-      True  = 已存在（跳過）
-      False = 不存在（可以存入）
     """
     with conn.cursor() as cur:
         # %s 是 psycopg2 的參數佔位符，防止 SQL injection
@@ -95,13 +67,6 @@ def article_exists(conn, url: str) -> bool:
 def save_article(conn, article_data: dict) -> bool:
     """
     將一篇文章存入資料庫
-    
-    參數：
-      conn         = 資料庫連線
-      article_data = 包含文章所有欄位的字典（dict ≈ JS 的 object）
-    回傳：
-      True  = 成功存入
-      False = 已存在，跳過
     """
     # 先檢查是否重複
     if article_exists(conn, article_data["url"]):
@@ -142,10 +107,6 @@ def save_fetch_log(conn, log_data: dict):
 def load_sources(conn) -> list:
     """
     從資料庫讀取所有啟用中的來源
-    
-    回傳：list of dict，每個 dict 是一個來源的資料
-    
-    前端類比：就像 fetch('/api/sources') 回傳的陣列
     """
     with conn.cursor() as cur:
         cur.execute("""
@@ -158,20 +119,10 @@ def load_sources(conn) -> list:
         columns = ["id", "name", "url", "language", "type", "source_tier", "resources_type", "fetcher"]
         return [dict(zip(columns, row)) for row in rows]
 
-
-# ══════════════════════════════════════════════════
 # 2. RSS 蒐集器
-# ══════════════════════════════════════════════════
-
 def fetch_rss(source: dict, conn) -> dict:
     """
     抓取一個 RSS 來源的最新文章
-    
-    RSS 是什麼？
-      RSS = Really Simple Syndication
-      是一種 XML 格式，讓網站發布「文章清單」讓別人訂閱
-      就像 Podcast 的 feed.xml 一樣
-    
     參數：
       source = 來源資料（dict），含 id / name / url / language 等
       conn   = 資料庫連線
@@ -222,10 +173,10 @@ def fetch_rss(source: dict, conn) -> dict:
             # 取得文章標題
             title = entry.get("title", "（無標題）").strip()
             
-            # ── 步驟三：取得文章內文 ──
+            # 步驟三：取得文章內文 ──
             content = extract_content(url, entry)
 
-            # ── 步驟四：存入資料庫 ──
+            # 步驟四：存入資料庫 ──
             article_data = {
                 "source_id":    source["id"],
                 "title":        title,
@@ -312,21 +263,10 @@ def parse_date(entry) -> datetime:
         pass
     return datetime.now(timezone.utc)  # 解析失敗就用現在時間
 
-
-# ══════════════════════════════════════════════════
 # 3. arXiv 蒐集器
-# ══════════════════════════════════════════════════
-
 def fetch_arxiv(source: dict, conn) -> dict:
     """
     抓取 arXiv 最新 AI 論文
-    
-    arXiv 是什麼？
-      學術論文預印本平台，AI 研究者在正式發表前
-      會先把論文上傳到這裡，所以這裡有最新的研究動態
-    
-    我們用官方的 Python SDK（arxiv 套件），
-    不用手動解析 XML，比 RSS 更方便
     """
     logger.info(f"開始抓取 arXiv：{source['name']}")
     
@@ -334,7 +274,7 @@ def fetch_arxiv(source: dict, conn) -> dict:
     articles_new = 0
 
     try:
-        # ── 建立 arXiv 查詢 ──
+        # 建立 arXiv 查詢
         # 這就像你在 arXiv 網站搜尋 "cs.AI" 分類的最新論文
         client = arxiv.Client(
             page_size=max_results,
@@ -403,11 +343,7 @@ def fetch_arxiv(source: dict, conn) -> dict:
             "error_message":  str(e),
         }
 
-
-# ══════════════════════════════════════════════════
 # 4. 主排程任務
-# ══════════════════════════════════════════════════
-
 def run_daily_fetch():
     """
     每日定時執行的主要任務
@@ -434,7 +370,7 @@ def run_daily_fetch():
     logger.info(f"   新增文章：{total_new} 篇")
     logger.info(f"   失敗來源：{total_failed} 個")
     logger.info("=" * 50)
-    
+
     conn = None
     total_new = 0
     total_failed = 0
@@ -442,7 +378,7 @@ def run_daily_fetch():
     try:
         # 建立資料庫連線
         conn = get_db_connection()
-        logger.info("✅ 資料庫連線成功")
+        logger.info("資料庫連線成功")
 
         # 從資料庫讀取來源清單
         sources = load_sources(conn)
@@ -458,7 +394,7 @@ def run_daily_fetch():
             if fetcher == "arxiv":
                 log_data = fetch_arxiv(source, conn)
             elif fetcher == "skip":
-                logger.info(f"⏭️  跳過（skip）：{source['name']}")
+                logger.info(f"⏭跳過（skip）：{source['name']}")
                 continue
             else:
                 log_data = fetch_rss(source, conn)
@@ -480,7 +416,7 @@ def run_daily_fetch():
         logger.info("=" * 50)
 
     except Exception as e:
-        logger.error(f"💥 主任務發生嚴重錯誤：{e}")
+        logger.error(f"主任務發生嚴重錯誤：{e}")
 
     finally:
         # finally 區塊無論成功失敗都會執行
@@ -489,11 +425,7 @@ def run_daily_fetch():
             conn.close()
             logger.info("資料庫連線已關閉")
 
-
-# ══════════════════════════════════════════════════
 # 5. 初始化資料庫（第一次執行時）
-# ══════════════════════════════════════════════════
-
 def init_db():
     """
     初始化資料庫：建立資料表 + 匯入來源清單
@@ -584,23 +516,13 @@ def seed_sources(conn):
 
     logger.info(f"已從 sources.csv 匯入 {len(sources_data)} 筆來源")
 
-
-# ══════════════════════════════════════════════════
 # 6. 程式入口點
-# ══════════════════════════════════════════════════
-
 if __name__ == "__main__":
     """
-    if __name__ == "__main__" 是什麼意思？
+    if __name__ == "__main__" 
     
     當你直接執行 `python main.py` 時，
     Python 會把 __name__ 設為 "__main__"
-    
-    這樣寫的好處是：
-    如果別的程式 import 這個檔案，
-    下面這段不會被執行（只有直接執行才會）
-    
-    前端類比：大概像是 React 的 root render 只在 main.tsx 執行
     """
     import sys
     

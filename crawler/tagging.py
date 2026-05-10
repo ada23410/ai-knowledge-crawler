@@ -20,9 +20,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ────────────────────────────────────────────────
-# 日誌設定
-# ────────────────────────────────────────────────
+# log設定
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
@@ -34,9 +32,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ────────────────────────────────────────────────
 # 標籤規則定義
-# ────────────────────────────────────────────────
 TAG_RULES: dict[str, dict[str, list[str]]] = {
     "監理合規": {
         "zh": [
@@ -445,9 +441,7 @@ class ArticleTagger:
             logger.info("資料庫連線已關閉")
 
 
-# ────────────────────────────────────────────────
 # 獨立執行入口
-# ────────────────────────────────────────────────
 if __name__ == "__main__":
     tagger = ArticleTagger()
     try:

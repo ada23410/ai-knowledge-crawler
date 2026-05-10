@@ -1,17 +1,6 @@
 """
 語意去重模組（Semantic Deduplication）
-=====================================================
 功能：找出資料庫中語意相似的文章，標記為重複，只保留最新和最舊的
-
-原理說明（給前端工程師）：
-  想像每篇文章是一個座標點
-  語意相近的文章座標會靠在一起
-  我們把靠在一起的點歸成一群（cluster）
-  每群只保留最新和最舊的，其他的標記為重複
-
-參考：Bob 的 Duplicate Articles Detection 設計
-  embedding model: gemini-embedding-001（Vertex AI）
-  clustering: Average Linkage + Fcluster（threshold=0.15）
 """
 
 import os
@@ -40,9 +29,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# ══════════════════════════════════════════════
 # 設定區（對應 .env 的可調參數）
-# ══════════════════════════════════════════════
 
 # 去重 threshold：越小越嚴格，越大越容易誤判
 # Bob 建議 0.15，我們先用這個值
@@ -63,11 +50,7 @@ MODEL_NAME = "gemini-embedding-001"
 # 每個 chunk 的字元上限；取第一個 chunk 做 embedding
 CHUNK_SIZE = 500
 
-
-# ══════════════════════════════════════════════
 # 1. 資料庫相關操作
-# ══════════════════════════════════════════════
-
 def get_db_connection():
     """建立資料庫連線"""
     return psycopg2.connect(
@@ -82,12 +65,6 @@ def get_db_connection():
 def fetch_recent_news_articles(conn) -> list:
     """
     從資料庫取出最近 N 天的「新聞類」文章
-
-    為什麼只處理新聞類？
-      - arXiv 論文有唯一 ID，天然不重複
-      - 重複問題主要出現在新聞媒體（TechCrunch、科技報橘等）
-
-    回傳：list of dict，每個 dict 是一篇文章
     """
     with conn.cursor() as cur:
         cur.execute("""
@@ -133,18 +110,13 @@ def mark_as_duplicate(conn, article_ids: list):
     logger.info(f"   標記 {len(article_ids)} 篇為重複")
 
 
-# ══════════════════════════════════════════════
 # 2. Chunking
-# ══════════════════════════════════════════════
-
 def chunk_text(text: str, chunk_size: int = CHUNK_SIZE) -> list[str]:
     """
     把文字切成固定大小的 chunk
 
     對應 Bob 的設計：chunking 後取 first chunk 做 embedding
     切法：按字元數切，不做斷句處理（簡化版）
-
-    前端類比：就像把一篇文章切成多張投影片，每張最多 500 字
     """
     if not text:
         return []
@@ -174,10 +146,7 @@ def get_first_chunk(article: dict) -> str:
     return chunks[0]
 
 
-# ══════════════════════════════════════════════
 # 3. Vertex AI Embedding
-# ══════════════════════════════════════════════
-
 def init_vertex_ai():
     """
     初始化 Vertex AI SDK
@@ -228,17 +197,14 @@ def embed_articles(articles: list) -> np.ndarray:
         for embedding in response:
             all_embeddings.append(embedding.values)
 
-        logger.info(f"   批次 {i // BATCH_SIZE + 1}：完成 {min(i + BATCH_SIZE, len(texts))}/{len(texts)} 篇")
+        logger.info(f"批次 {i // BATCH_SIZE + 1}：完成 {min(i + BATCH_SIZE, len(texts))}/{len(texts)} 篇")
 
     embeddings = np.array(all_embeddings)
-    logger.info(f"   ✅ 向量化完成，維度：{embeddings.shape}")
+    logger.info(f"向量化完成，維度：{embeddings.shape}")
     return embeddings
 
 
-# ══════════════════════════════════════════════
 # 4. Clustering 聚類分析
-# ══════════════════════════════════════════════
-
 def cluster_articles(embeddings: np.ndarray) -> np.ndarray:
     """
     用 Average Linkage + Fcluster 把相似的文章分成群
@@ -263,11 +229,7 @@ def cluster_articles(embeddings: np.ndarray) -> np.ndarray:
 
     return labels
 
-
-# ══════════════════════════════════════════════
 # 5. 決定哪些文章要保留
-# ══════════════════════════════════════════════
-
 def find_duplicates(articles: list, cluster_labels: np.ndarray) -> list:
     """
     根據 cluster 結果，找出要標記為重複的文章 ID
@@ -308,11 +270,7 @@ def find_duplicates(articles: list, cluster_labels: np.ndarray) -> list:
 
     return duplicate_ids
 
-
-# ══════════════════════════════════════════════
 # 6. 主流程
-# ══════════════════════════════════════════════
-
 def run_deduplication():
     """
     執行完整的語意去重流程
@@ -378,10 +336,8 @@ def run_deduplication():
             conn.close()
 
 
-# ══════════════════════════════════════════════
-# 7. 直接執行（測試用）
-# ══════════════════════════════════════════════
 
+# 7. 直接執行（測試用）
 if __name__ == "__main__":
     import schedule
     import time
