@@ -21,26 +21,22 @@ from psycopg2.extras import execute_values  # 批次寫入資料用
 from tagging import ArticleTagger
 
 # 讀取 .env 設定
-# 這行讓 Python 讀取專案根目錄的 .env 檔案
 load_dotenv()
 
 # 設定 Log 系統
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
     format="%(asctime)s [%(levelname)s] %(message)s",
-    # asctime = 時間，levelname = 等級，message = 訊息
     handlers=[
-        logging.StreamHandler(),                           # 輸出到終端機
-        logging.FileHandler("logs/crawler.log", encoding="utf-8")  # 同時存成檔案
+        logging.StreamHandler(),
+        logging.FileHandler("logs/crawler.log", encoding="utf-8")
     ]
 )
 logger = logging.getLogger(__name__)
 
 # 1. 資料庫連線管理
 def get_db_connection():
-    """
-    建立 PostgreSQL 資料庫連線
-    """
+    """建立 PostgreSQL 資料庫連線"""
     conn = psycopg2.connect(
         host=os.getenv("POSTGRES_HOST", "localhost"),
         port=os.getenv("POSTGRES_PORT", 5432),
@@ -52,23 +48,14 @@ def get_db_connection():
 
 
 def article_exists(conn, url: str) -> bool:
-    """
-    檢查這篇文章是否已經存在資料庫（用 URL 判斷）
-    
-    用途：去重。同一篇文章不要存兩次。
-    """
+    """檢查這篇文章是否已經存在資料庫（用 URL 判斷）"""
     with conn.cursor() as cur:
-        # %s 是 psycopg2 的參數佔位符，防止 SQL injection
-        # 就像你前端用 template literal 但更安全
         cur.execute("SELECT 1 FROM articles WHERE url = %s", (url,))
         return cur.fetchone() is not None
 
 
 def save_article(conn, article_data: dict) -> bool:
-    """
-    將一篇文章存入資料庫
-    """
-    # 先檢查是否重複
+    """將一篇文章存入資料庫"""
     if article_exists(conn, article_data["url"]):
         return False
 
@@ -82,15 +69,12 @@ def save_article(conn, article_data: dict) -> bool:
                 %(published_at)s, %(language)s, %(content_type)s, %(source_tier)s, %(governance_status)s
             )
         """, article_data)
-        # commit = 確認寫入（不 commit 的話資料不會真的存進去）
         conn.commit()
     return True
 
 
 def save_fetch_log(conn, log_data: dict):
-    """
-    記錄這次抓取的執行結果到 fetch_logs 表
-    """
+    """記錄這次抓取的執行結果到 fetch_logs 表"""
     with conn.cursor() as cur:
         cur.execute("""
             INSERT INTO fetch_logs (
@@ -105,9 +89,7 @@ def save_fetch_log(conn, log_data: dict):
 
 
 def load_sources(conn) -> list:
-    """
-    從資料庫讀取所有啟用中的來源
-    """
+    """從資料庫讀取所有啟用中的來源"""
     with conn.cursor() as cur:
         cur.execute("""
             SELECT id, name, url, language, type, source_tier, resources_type, fetcher
@@ -123,6 +105,7 @@ def load_sources(conn) -> list:
 def fetch_rss(source: dict, conn) -> dict:
     """
     抓取一個 RSS 來源的最新文章
+
     參數：
       source = 來源資料（dict），含 id / name / url / language 等
       conn   = 資料庫連線
@@ -131,7 +114,6 @@ def fetch_rss(source: dict, conn) -> dict:
     """
     logger.info(f"開始抓取 RSS：{source['name']}")
     
-    # 設定幾天內的文章才要抓
     days_limit = int(os.getenv("FETCH_DAYS_LIMIT", 7))
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_limit)
     
@@ -139,50 +121,33 @@ def fetch_rss(source: dict, conn) -> dict:
     articles_new = 0
 
     try:
-        # ── 步驟一：用 feedparser 解析 RSS ──
-        # feedparser 會自動發 HTTP 請求並解析 XML
-        # feed.entries 是文章清單（list）
         feed = feedparser.parse(source["url"])
         
-        # 檢查是否有錯誤
-        # bozo = feedparser 用來標記「這個 feed 有問題」的旗標
         if feed.bozo and not feed.entries:
             raise Exception(f"RSS 解析失敗：{feed.bozo_exception}")
 
         logger.info(f"   找到 {len(feed.entries)} 篇文章")
         articles_found = len(feed.entries)
 
-        # ── 步驟二：逐篇處理 ──
-        # feed.entries 裡每個 entry 就是一篇文章
         for entry in feed.entries:
-            
-            # 取得文章網址
-            # .get() = 取值，如果不存在就回傳 None（不會報錯）
-            # 等同 JS 的 entry?.link
             url = entry.get("link", "").strip()
             if not url:
-                continue  # 沒有網址就跳過（continue ≈ JS 的 continue）
+                continue
 
-            # 取得發布時間
             published_at = parse_date(entry)
             
-            # 只抓 N 天內的文章
             if published_at and published_at < cutoff_date:
                 continue
 
-            # 取得文章標題
             title = entry.get("title", "（無標題）").strip()
-            
-            # 步驟三：取得文章內文 ──
             content = extract_content(url, entry)
 
-            # 步驟四：存入資料庫 ──
             article_data = {
                 "source_id":    source["id"],
                 "title":        title,
                 "url":          url,
                 "content":      content,
-                "summary":      content[:200] if content else None,  # 前 200 字當摘要
+                "summary":      content[:200] if content else None,
                 "published_at": published_at,
                 "language":     source["language"],
                 "content_type": "rss",
@@ -190,12 +155,10 @@ def fetch_rss(source: dict, conn) -> dict:
                 "governance_status": "pending",
             }
             
-            # save_article 回傳 True = 新文章存入成功
             if save_article(conn, article_data):
                 articles_new += 1
                 logger.info(f"新文章：{title[:50]}...")
 
-        # 回傳成功的 log 資料
         return {
             "source_id":      source["id"],
             "source_name":    source["name"],
@@ -206,7 +169,6 @@ def fetch_rss(source: dict, conn) -> dict:
         }
 
     except Exception as e:
-        # 發生任何錯誤，記錄下來但不讓整個程式崩潰
         logger.error(f"抓取失敗 {source['name']}：{e}")
         return {
             "source_id":      source["id"],
@@ -221,90 +183,71 @@ def fetch_rss(source: dict, conn) -> dict:
 def extract_content(url: str, entry) -> str:
     """
     從文章 URL 萃取純文字內文
-    
+
     策略：
     1. 先用 trafilatura 從網頁直接抓（最完整）
     2. 如果失敗，就用 RSS entry 裡的摘要（備案）
     3. 如果還是沒有，回傳空字串
-    
-    timeout = 請求等待秒數，超過就放棄
     """
     try:
         downloaded = trafilatura.fetch_url(url, timeout=15)
         if downloaded:
             content = trafilatura.extract(downloaded)
-            if content and len(content) > 100:  # 太短的不算
+            if content and len(content) > 100:
                 return content
     except Exception:
-        pass  # 失敗就靜默跳過，試備案
+        pass
 
-    # 備案：用 RSS 裡的摘要
     summary = entry.get("summary", "") or entry.get("description", "")
-    # 清掉 HTML 標籤（簡單版）
     import re
     clean = re.sub(r"<[^>]+>", "", summary).strip()
     return clean if clean else ""
 
 
 def parse_date(entry) -> datetime:
-    """
-    解析 RSS entry 的發布時間
-    
-    RSS 的日期格式五花八門，feedparser 幫我們標準化了
-    published_parsed 是 time.struct_time 格式，需要轉換
-    """
+    """解析 RSS entry 的發布時間"""
     try:
         if hasattr(entry, "published_parsed") and entry.published_parsed:
-            # struct_time → timestamp → datetime
             import calendar
             ts = calendar.timegm(entry.published_parsed)
             return datetime.fromtimestamp(ts, tz=timezone.utc)
     except Exception:
         pass
-    return datetime.now(timezone.utc)  # 解析失敗就用現在時間
+    return datetime.now(timezone.utc)
 
 # 3. arXiv 蒐集器
 def fetch_arxiv(source: dict, conn) -> dict:
-    """
-    抓取 arXiv 最新 AI 論文
-    """
+    """抓取 arXiv 最新 AI 論文"""
     logger.info(f"開始抓取 arXiv：{source['name']}")
     
     max_results = int(os.getenv("ARXIV_MAX_RESULTS", 50))
     articles_new = 0
 
     try:
-        # 建立 arXiv 查詢
-        # 這就像你在 arXiv 網站搜尋 "cs.AI" 分類的最新論文
         client = arxiv.Client(
             page_size=max_results,
-            delay_seconds=3,   # 每次請求間隔 3 秒，避免被封鎖
-            num_retries=3,     # 失敗最多重試 3 次
+            delay_seconds=3,
+            num_retries=3,
         )
         
         search = arxiv.Search(
-            query="cat:cs.AI",          # 搜尋 CS.AI 分類
+            query="cat:cs.AI",
             max_results=max_results,
-            sort_by=arxiv.SortCriterion.SubmittedDate,  # 最新優先
+            sort_by=arxiv.SortCriterion.SubmittedDate,
         )
 
         results = list(client.results(search))
         logger.info(f"   找到 {len(results)} 篇論文")
 
-        # ── 逐篇處理 ──
         for paper in results:
-            url = paper.entry_id  # arXiv 論文的唯一 URL
+            url = paper.entry_id
             title = paper.title.replace("\n", " ").strip()
-            
-            # arXiv 論文的 abstract（摘要）就是最好的內容
             content = paper.summary.replace("\n", " ").strip()
             
-            # 作者清單 → 轉成字串
             authors = ", ".join(str(a) for a in paper.authors[:5])
             if len(paper.authors) > 5:
                 authors += " et al."
             
-            # 把作者資訊加到內文前面
             full_content = f"[Authors] {authors}\n\n{content}"
 
             article_data = {
@@ -316,7 +259,8 @@ def fetch_arxiv(source: dict, conn) -> dict:
                 "published_at": paper.published,
                 "language":     "en",
                 "content_type": "arxiv",
-                "source_tier":  "A",  # arXiv 屬於 A 類來源
+                "source_tier":  "A",
+                "governance_status": "pending",
             }
             
             if save_article(conn, article_data):
@@ -347,70 +291,48 @@ def fetch_arxiv(source: dict, conn) -> dict:
 def run_daily_fetch():
     """
     每日定時執行的主要任務
-    
+
     執行順序：
     1. 連線資料庫
     2. 讀取所有啟用的來源
     3. 依來源類型選擇對應的蒐集器
     4. 記錄每個來源的執行結果
-    5. 輸出今日統計摘要
+    5. 執行自動評分與打標
+    6. 輸出今日統計摘要
     """
-    # ── 執行自動打標（approved 文章）──
-    logger.info("開始執行自動打標...")
-    tagger = ArticleTagger()
-    try:
-        tagger.run()
-    finally:
-        tagger.close()
-    logger.info("自動打標完成")
-
-    # 輸出今日摘要
-    logger.info("=" * 50)
-    logger.info(f"今日蒐集完成")
-    logger.info(f"   新增文章：{total_new} 篇")
-    logger.info(f"   失敗來源：{total_failed} 個")
-    logger.info("=" * 50)
-
     conn = None
-    total_new = 0
+    total_new    = 0   # ✅ 在使用前先宣告並初始化
     total_failed = 0
 
     try:
-        # 建立資料庫連線
         conn = get_db_connection()
         logger.info("資料庫連線成功")
 
-        # 從資料庫讀取來源清單
         sources = load_sources(conn)
-        logger.info(f"📋 本次要抓取的來源數：{len(sources)}")
+        logger.info(f"本次要抓取的來源數：{len(sources)}")
 
         # ── 逐一處理每個來源 ──
         for source in sources:
-            
-            # 根據 fetcher 欄位決定用哪個蒐集器
-            # 這個值來自 sources.csv，比靠名稱判斷更可靠
             fetcher = source.get("fetcher", "rss")
 
             if fetcher == "arxiv":
                 log_data = fetch_arxiv(source, conn)
             elif fetcher == "skip":
-                logger.info(f"⏭跳過（skip）：{source['name']}")
+                logger.info(f"跳過（skip）：{source['name']}")
                 continue
             else:
                 log_data = fetch_rss(source, conn)
 
-            # 記錄執行結果到資料庫
             save_fetch_log(conn, log_data)
 
-            # 累計統計
             if log_data["status"] == "success":
                 total_new += log_data["articles_new"]
             else:
                 total_failed += 1
 
-        # ── 輸出今日摘要 ──
+        # ── 輸出今日爬蟲摘要 ──
         logger.info("=" * 50)
-        logger.info(f"今日蒐集完成")
+        logger.info("今日蒐集完成")
         logger.info(f"   新增文章：{total_new} 篇")
         logger.info(f"   失敗來源：{total_failed} 個")
         logger.info("=" * 50)
@@ -419,34 +341,93 @@ def run_daily_fetch():
         logger.error(f"主任務發生嚴重錯誤：{e}")
 
     finally:
-        # finally 區塊無論成功失敗都會執行
-        # 確保資料庫連線一定會被關閉（釋放資源）
         if conn:
             conn.close()
             logger.info("資料庫連線已關閉")
 
+    # ── 執行自動評分（pending 文章）──
+    logger.info("開始執行自動評分...")
+    try:
+        from scoring import run_scoring
+        run_scoring()
+    except Exception as e:
+        logger.error(f"自動評分失敗：{e}")
+    logger.info("自動評分完成")
+
+    # ── 執行自動打標（approved 文章）──
+    logger.info("開始執行自動打標...")
+    tagger = ArticleTagger()
+    try:
+        tagger.run()
+    except Exception as e:
+        logger.error(f"自動打標失敗：{e}")
+    finally:
+        tagger.close()
+    logger.info("自動打標完成")
+
+
+def run_biweekly_pipeline():
+    """
+    每兩週執行一次的完整治理流程。
+
+    執行順序：
+      1. dedup（語意去重）→ 標記重複文章
+      2. scoring（內容評分）→ approved / rejected
+      3. tagging（自動打標）→ approved 文章打標
+
+    排程：每兩週一 09:00
+    """
+    logger.info("=" * 50)
+    logger.info("兩週治理流程啟動")
+    logger.info("=" * 50)
+
+    # ── Step 1：語意去重 ──
+    logger.info("Step 1／3：開始語意去重...")
+    try:
+        from dedup import run_deduplication
+        run_deduplication()
+    except Exception as e:
+        logger.error(f"去重失敗：{e}")
+    logger.info("去重完成")
+
+    # ── Step 2：內容評分 ──
+    logger.info("Step 2／3：開始內容評分...")
+    try:
+        from scoring import run_scoring
+        run_scoring()
+    except Exception as e:
+        logger.error(f"評分失敗：{e}")
+    logger.info("評分完成")
+
+    # ── Step 3：自動打標 ──
+    logger.info("Step 3／3：開始自動打標...")
+    tagger = ArticleTagger()
+    try:
+        tagger.run()
+    except Exception as e:
+        logger.error(f"打標失敗：{e}")
+    finally:
+        tagger.close()
+    logger.info("打標完成")
+
+    logger.info("=" * 50)
+    logger.info("兩週治理流程完成")
+    logger.info("=" * 50)
+
 # 5. 初始化資料庫（第一次執行時）
 def init_db():
-    """
-    初始化資料庫：建立資料表 + 匯入來源清單
-    
-    只需要第一次執行，之後資料表已存在就不會重建
-    （因為 SQL 裡用了 CREATE TABLE IF NOT EXISTS）
-    """
-    logger.info("🔧 初始化資料庫...")
+    """初始化資料庫：建立資料表 + 匯入來源清單"""
+    logger.info("初始化資料庫...")
     conn = get_db_connection()
     
     try:
         with conn.cursor() as cur:
-            # 讀取並執行 SQL 檔案
-            # open() ≈ JS 的 fs.readFileSync()
             with open("/db/init.sql", "r", encoding="utf-8") as f:
                 sql = f.read()
             cur.execute(sql)
             conn.commit()
             logger.info("資料表建立完成")
 
-        # 匯入來源清單（如果 sources 表是空的）
         seed_sources(conn)
 
     finally:
@@ -454,16 +435,7 @@ def init_db():
 
 
 def seed_sources(conn):
-    """
-    從 sources.csv 讀取來源清單並寫入資料庫
-    
-    為什麼從 CSV 讀取而不是寫死在程式碼？
-      → 要新增或停用來源，只需要改 CSV，不用動程式碼
-      → 非工程師（如 PM）也可以直接編輯 CSV 管理來源
-      → 跟 Excel 盤點表格式一致，方便維護
-    
-    CSV 位置：../db/sources.csv（相對於 crawler/ 資料夾）
-    """
+    """從 sources.csv 讀取來源清單並寫入資料庫"""
     with conn.cursor() as cur:
         cur.execute("SELECT COUNT(*) FROM sources")
         count = cur.fetchone()[0]
@@ -471,26 +443,17 @@ def seed_sources(conn):
             logger.info(f"   sources 表已有 {count} 筆資料，略過匯入")
             return
 
-    # 找 CSV 檔案路徑
-    # __file__ = 目前這個 Python 檔案的路徑（main.py）
-    # os.path.dirname() = 取得資料夾路徑
-    # os.path.join() ≈ JS 的 path.join()
     csv_path = "/db/sources.csv"
 
     if not os.path.exists(csv_path):
-        logger.error(f" 找不到 sources.csv：{csv_path}")
-        logger.error("   請確認 db/sources.csv 存在")
+        logger.error(f"找不到 sources.csv：{csv_path}")
         return
 
-    # 讀取 CSV
-    # csv.DictReader 把每一列讀成 dict，key = 欄位名稱
-    # 就像 JS 的 array of objects
     import csv
     sources_data = []
     with open(csv_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            # is_active 在 CSV 是字串 "true"/"false"，要轉成 Python bool
             is_active = row["is_active"].strip().lower() == "true"
             sources_data.append((
                 row["resources_type"],
@@ -518,48 +481,47 @@ def seed_sources(conn):
 
 # 6. 程式入口點
 if __name__ == "__main__":
-    """
-    if __name__ == "__main__" 
-    
-    當你直接執行 `python main.py` 時，
-    Python 會把 __name__ 設為 "__main__"
-    """
     import sys
     
-    # 確保 logs 資料夾存在
     os.makedirs("logs", exist_ok=True)
 
-    # 判斷執行模式
-    # sys.argv = 命令列參數的清單
-    # 執行 `python main.py init`   → sys.argv = ["main.py", "init"]
-    # 執行 `python main.py now`    → sys.argv = ["main.py", "now"]
-    # 執行 `python main.py`        → sys.argv = ["main.py"]（啟動排程）
-    
     mode = sys.argv[1] if len(sys.argv) > 1 else "schedule"
 
     if mode == "init":
-        # 初始化模式：建立資料表 + 匯入來源
         init_db()
         logger.info("初始化完成！現在可以執行 python main.py now 測試抓取")
 
     elif mode == "now":
-        # 立即執行模式：馬上抓一次（測試用）
-        logger.info("⚡ 立即執行模式（測試用）")
+        logger.info("立即執行模式（測試用）")
         run_daily_fetch()
 
     else:
-        # 排程模式：每天指定時間自動執行
         fetch_hour   = int(os.getenv("FETCH_HOUR", 8))
         fetch_minute = int(os.getenv("FETCH_MINUTE", 0))
         run_time     = f"{fetch_hour:02d}:{fetch_minute:02d}"
 
-        logger.info(f"排程模式啟動，每天 {run_time} 執行")
-        
-        # schedule.every().day.at("08:00") = 每天早上 8 點執行
+        biweekly_time = "09:00"
+
+        logger.info(f"排程模式啟動")
+        logger.info(f"  每天 {run_time}：爬蟲抓取")
+        logger.info(f"  每兩週一 {biweekly_time}：去重 → 評分 → 打標")
+
+        # 每天爬蟲
         schedule.every().day.at(run_time).do(run_daily_fetch)
 
-        # 無限迴圈，讓程式持續運行等待排程觸發
-        # 這就是為什麼 Docker 容器要一直跑著
+        # 每兩週一 09:00 執行完整治理流程
+        # schedule 套件無內建「每兩週」，用計數器實作
+        biweekly_counter = {"count": 0}
+
+        def biweekly_monday_job():
+            biweekly_counter["count"] += 1
+            if biweekly_counter["count"] % 2 == 0:
+                run_biweekly_pipeline()
+            else:
+                logger.info("本週為非治理週，跳過 dedup/scoring/tagging")
+
+        schedule.every().monday.at(biweekly_time).do(biweekly_monday_job)
+
         while True:
-            schedule.run_pending()  # 檢查是否有任務需要執行
-            time.sleep(60)          # 每 60 秒檢查一次
+            schedule.run_pending()
+            time.sleep(60)
