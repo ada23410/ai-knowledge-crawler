@@ -14,6 +14,11 @@ tagging.py — 語意向量自動標籤模組
   4. Adaptive-K 找最大語意斷層，動態決定 TopK
   5. 選 min(TopK, 5) 個標籤寫入資料庫
 
+限流機制：
+  - 每篇文章間隔 ARTICLE_INTERVAL 秒（預設 1.0 秒）
+  - 每批次完成後休息 BATCH_INTERVAL 秒（預設 5.0 秒）
+  - 遇到 429 / quota 錯誤時指數退避重試（60s → 120s → 240s，最多 3 次）
+
 優點：
   - 不需要手動維護關鍵字清單
   - 同義詞和語意變體自動涵蓋
@@ -24,6 +29,7 @@ tagging.py — 語意向量自動標籤模組
 import json
 import logging
 import os
+import time
 import numpy as np
 from datetime import datetime, timezone
 
@@ -54,97 +60,159 @@ logger = logging.getLogger(__name__)
 
 # ────────────────────────────────────────────────
 # 標籤定義（name + description + synonyms）
+# 適用對象：AI 數據學院內勤同仁
+# 核心任務：員工 AI 教育訓練 × 追蹤特定主題趨勢
 # ────────────────────────────────────────────────
 TAG_DEFINITIONS: dict[str, dict] = {
-    "監理合規": {
-        "description": "金融業 AI 監管、法規遵循、稽核、資料保護與隱私治理",
+
+    "AI 工具應用": {
+        "description": (
+            "市面上可直接使用的 AI 工具、平台與 SaaS 服務評測，"
+            "涵蓋生產力工具、AI 助理、企業導入方案，"
+            "協助內勤同仁評估哪些工具值得學習或推廣。"
+        ),
         "synonyms": [
-            "regulatory", "compliance", "audit", "governance", "oversight",
-            "supervision", "GDPR", "data protection", "privacy", "KYC", "AML",
-            "accountability", "transparency", "FSA", "FSB", "IAIS", "Basel",
-            "anti-money laundering", "know your customer", "data privacy",
-            "information security", "risk control", "internal control",
-            "金管會", "合規", "監理", "法遵", "稽核", "個資", "隱私",
-            "資安", "資訊安全", "風控", "內控", "監管", "法規遵循",
+            # English
+            "AI tool", "AI platform", "SaaS", "productivity tool",
+            "AI assistant", "Copilot", "ChatGPT", "Gemini", "Claude",
+            "no-code", "low-code", "tool evaluation", "review",
+            "enterprise AI", "AI adoption", "workflow tool",
+            "AI application", "software", "plugin", "integration",
+            # 繁體中文
+            "AI 工具", "工具評測", "平台", "生產力工具", "助理",
+            "企業導入", "工具推薦", "工具介紹", "軟體", "外掛",
+            "應用程式", "試用", "評估", "導入工具",
         ],
     },
-    "模型技術": {
-        "description": "AI 模型架構、訓練方法、推論優化與語言模型技術",
+
+    "流程自動化": {
+        "description": (
+            "RPA、文件處理、表單自動化、AI Agent 在行政流程的落地應用，"
+            "聚焦內勤單位可直接參考的自動化場景與實作案例，"
+            "包含人機協作、作業流程再造等主題。"
+        ),
         "synonyms": [
-            "LLM", "large language model", "transformer", "architecture",
-            "fine-tuning", "training", "inference", "embedding", "attention",
-            "neural network", "foundation model", "multimodal", "RAG",
-            "RLHF", "quantization", "distillation", "benchmark",
-            "retrieval augmented generation", "agentic", "agent",
-            "pre-training", "parameter", "pruning", "generative AI",
-            "模型", "訓練", "推論", "架構", "微調", "向量", "嵌入",
-            "大語言模型", "生成式", "多模態", "注意力機制", "參數",
+            # English
+            "RPA", "robotic process automation", "workflow automation",
+            "process automation", "AI agent", "agentic", "document processing",
+            "OCR", "intelligent document processing", "IDP",
+            "form automation", "back office", "operation automation",
+            "business process", "human in the loop", "task automation",
+            "automation tool", "digital worker", "bot",
+            # 繁體中文
+            "流程自動化", "機器人流程自動化", "自動化", "作業自動化",
+            "文件處理", "表單自動化", "行政自動化", "智能文件",
+            "人機協作", "流程再造", "後台自動化", "作業流程",
+            "自動填表", "批次處理", "無人化",
         ],
     },
-    "產業應用": {
-        "description": "AI 技術在企業的實際導入、落地案例與商業化應用",
+
+    "核保理賠 AI": {
+        "description": (
+            "AI 輔助核保決策、理賠審查、醫療文件辨識、詐欺偵測與客戶風險評估，"
+            "聚焦保險業 AI 落地應用場景，"
+            "協助核保與理賠同仁掌握最新技術趨勢與業界案例。"
+        ),
         "synonyms": [
-            "deployment", "implementation", "use case", "case study",
-            "production", "pilot", "enterprise", "automation", "chatbot",
-            "digital transformation", "real-world", "proof of concept",
-            "go live", "rollout", "at scale", "underwriting", "claims",
-            "fraud detection", "customer service", "recommendation",
-            "導入", "落地", "部署", "應用", "案例", "自動化", "商業化",
-            "數位轉型", "核保", "理賠", "客服", "聊天機器人", "試點",
+            # English
+            "underwriting", "claims", "claims processing", "fraud detection",
+            "insurance AI", "InsurTech", "medical document", "risk assessment",
+            "policy", "actuarial", "loss ratio", "claims automation",
+            "straight through processing", "STP", "injury assessment",
+            "medical review", "subrogation", "reinsurance",
+            # 繁體中文
+            "核保", "理賠", "保險 AI", "詐欺偵測", "醫療文件",
+            "風險評估", "保單", "精算", "理賠自動化", "核保決策",
+            "傷害評估", "醫療審查", "代位求償", "再保險",
+            "核保輔助", "理賠審核", "保險科技",
         ],
     },
-    "政策法規": {
-        "description": "政府 AI 政策、立法動態、法律框架與監管準則",
+
+    "風控法遵 AI": {
+        "description": (
+            "AI 應用於金融風險控管、反洗錢（AML）、客戶身分驗證（KYC）、"
+            "信用評分與監理科技（RegTech），"
+            "協助風控與法遵同仁追蹤 AI 在合規領域的最新發展。"
+        ),
         "synonyms": [
-            "AI Act", "policy", "regulation", "legislation", "bill",
-            "executive order", "guideline", "standard", "framework",
-            "white paper", "governance", "principle", "law",
-            "government policy", "regulatory framework", "legal",
-            "法規", "政策", "立法", "白皮書", "準則", "指引", "條例",
-            "行政命令", "法令", "規範", "辦法", "草案",
+            # English
+            "AML", "anti-money laundering", "KYC", "know your customer",
+            "credit scoring", "risk model", "RegTech", "regulatory technology",
+            "fraud prevention", "financial crime", "sanctions screening",
+            "transaction monitoring", "model risk", "stress testing",
+            "credit risk", "market risk", "operational risk",
+            "risk management", "compliance AI", "suspicious activity",
+            # 繁體中文
+            "洗錢防制", "客戶身分驗證", "信用評分", "風控模型",
+            "監理科技", "金融犯罪", "交易監控", "制裁名單篩查",
+            "模型風險", "壓力測試", "信用風險", "市場風險",
+            "作業風險", "風險管理", "法遵 AI", "可疑交易",
+            "風控", "法遵", "合規 AI",
         ],
     },
-    "學術研究": {
-        "description": "AI 學術論文、實驗研究、資料集與基準測試",
+
+    "監理政策": {
+        "description": (
+            "主管機關 AI 相關公告、金融監理政策、個資保護法規、"
+            "AI 治理框架與國際監管動態，"
+            "協助同仁掌握法規變化對業務的影響。"
+        ),
         "synonyms": [
-            "arXiv", "paper", "research", "experiment", "dataset",
-            "ablation", "evaluation", "benchmark", "academic",
-            "journal", "conference", "NeurIPS", "ICML", "ACL", "ICLR",
-            "AAAI", "preprint", "study", "empirical", "findings",
-            "論文", "研究", "實驗", "資料集", "基準", "評估", "學術",
-            "期刊", "會議論文", "實驗結果", "消融實驗",
+            # English
+            "AI Act", "regulation", "policy", "legislation", "guideline",
+            "white paper", "regulatory framework", "executive order",
+            "standard", "principle", "governance framework", "legal",
+            "GDPR", "data protection", "privacy law", "FSA", "FSB",
+            "IAIS", "Basel", "supervisory", "enforcement",
+            # 繁體中文
+            "金管會", "監理政策", "法規", "政策", "公告", "指引",
+            "白皮書", "準則", "條例", "草案", "個資法", "隱私",
+            "治理框架", "監管", "行政命令", "法令", "辦法",
+            "監理規範", "主管機關", "法規遵循",
         ],
     },
-    "金融科技": {
-        "description": "金融科技創新、數位支付、加密資產與保險科技應用",
+
+    "AI 教育訓練": {
+        "description": (
+            "員工 AI 素養培訓、課程設計、學習資源、教學工具與企業內訓案例，"
+            "包含 AI 技能地圖、培訓計畫規劃、學習平台評比，"
+            "為 AI 數據學院核心關注主題。"
+        ),
         "synonyms": [
-            "FinTech", "blockchain", "cryptocurrency", "payment",
-            "credit scoring", "wealth management", "InsurTech",
-            "investment", "asset management", "open banking",
-            "digital finance", "neobank", "robo-advisor",
-            "digital asset", "stable coin", "embedded finance",
-            "金融科技", "區塊鏈", "加密貨幣", "支付", "投資",
-            "保險科技", "數位金融", "開放銀行", "資產管理",
+            # English
+            "AI literacy", "AI training", "upskilling", "reskilling",
+            "workforce training", "learning and development", "L&D",
+            "AI education", "course", "curriculum", "e-learning",
+            "learning platform", "skill development", "competency",
+            "certification", "training program", "workshop", "bootcamp",
+            "talent development", "AI skill", "corporate training",
+            # 繁體中文
+            "AI 素養", "員工訓練", "教育訓練", "培訓", "課程",
+            "學習資源", "技能提升", "再培訓", "內訓", "學習平台",
+            "技能地圖", "認證", "工作坊", "訓練計畫", "人才培育",
+            "AI 教育", "數位學習", "線上課程", "學習發展",
         ],
     },
-    "開源生態": {
-        "description": "開源 AI 模型、社群貢獻、開放原始碼工具與生態系",
+
+    "產業趨勢": {
+        "description": (
+            "金融保險業 AI 導入現況、競品動態、市場研究報告與產業前瞻，"
+            "提供內勤同仁掌握整體市場脈動，"
+            "作為提交主管週報或教育訓練選題的參考素材。"
+        ),
         "synonyms": [
-            "open source", "open-source", "GitHub", "community",
-            "contribution", "license", "Hugging Face", "open weights",
-            "open model", "Apache", "MIT license", "open access",
-            "開源", "開放原始碼", "社群", "貢獻", "授權",
-        ],
-    },
-    "AI 安全": {
-        "description": "AI 對齊、可解釋性、公平性、幻覺與模型安全防護",
-        "synonyms": [
-            "AI safety", "alignment", "explainability", "interpretability",
-            "bias", "fairness", "hallucination", "jailbreak", "red team",
-            "robustness", "trustworthy", "responsible AI", "XAI",
-            "adversarial", "safety evaluation", "model safety",
-            "AI 安全", "對齊", "可解釋", "可解釋性", "偏見",
-            "公平性", "幻覺", "越獄", "紅隊", "魯棒性", "可信賴",
+            # English
+            "industry trend", "market report", "market research",
+            "competitive landscape", "benchmark report", "industry insight",
+            "financial services", "banking AI", "insurance industry",
+            "digital transformation", "AI adoption rate", "survey",
+            "forecast", "outlook", "annual report", "analyst report",
+            "Gartner", "McKinsey", "Deloitte", "industry news",
+            # 繁體中文
+            "產業趨勢", "市場報告", "市場研究", "競品動態",
+            "金融業", "保險業", "數位轉型", "導入現況", "產業前瞻",
+            "趨勢報告", "年度報告", "調查報告", "分析報告",
+            "市場動態", "業界動態", "產業洞察", "產業分析",
         ],
     },
 }
@@ -160,6 +228,14 @@ TOP_N          = 20
 MAX_TAGS       = 5
 BATCH_SIZE     = 250
 
+# ────────────────────────────────────────────────
+# 限流設定
+# ────────────────────────────────────────────────
+ARTICLE_INTERVAL = 1.0    # 每篇文章間隔秒數
+BATCH_INTERVAL   = 5.0    # 每批次完成後休息秒數
+RETRY_MAX        = 3      # 429 最大重試次數
+RETRY_BASE_WAIT  = 60     # 第一次重試等待秒數（指數退避：60 → 120 → 240）
+
 
 class ArticleTagger:
     """
@@ -167,6 +243,7 @@ class ArticleTagger:
 
     使用 gemini-embedding-001 將文章和標籤定義向量化，
     透過 cosine similarity + Adaptive-K 動態決定每篇文章的標籤。
+    內建 429 指數退避重試與每篇 / 每批限流機制。
 
     屬性說明：
         conn:            psycopg2 資料庫連線物件
@@ -226,30 +303,68 @@ class ArticleTagger:
         return conn
 
     # ──────────────────────────────────────────
-    # Embedding 工具函式
+    # Embedding 工具函式（含限流與網路錯誤重試）
     # ──────────────────────────────────────────
 
     def _embed_texts(self, texts: list[str]) -> np.ndarray:
         """
-        批次向量化文字清單。
+        批次向量化文字清單，遇到可重試錯誤時自動指數退避重試。
+
+        可重試錯誤類型：
+          - 429 / quota / resource exhausted：API 限流
+          - 503 / socket closed / unavailable：網路連線中斷
+
+        重試策略：
+          - 第 1 次重試：等待 60 秒
+          - 第 2 次重試：等待 120 秒
+          - 第 3 次重試：等待 240 秒
+          - 超過 3 次則拋出例外
 
         Args:
             texts: 要向量化的文字列表
 
         Returns:
             np.ndarray，shape = (len(texts), 3072)
+
+        Raises:
+            Exception: 不可重試錯誤，或重試次數耗盡時拋出
         """
         all_embeddings = []
 
         for i in range(0, len(texts), BATCH_SIZE):
-            batch = texts[i:i + BATCH_SIZE]
+            batch  = texts[i:i + BATCH_SIZE]
             inputs = [
                 TextEmbeddingInput(text=t, task_type="SEMANTIC_SIMILARITY")
                 for t in batch
             ]
-            response = self.model.get_embeddings(inputs)
-            for emb in response:
-                all_embeddings.append(emb.values)
+
+            for attempt in range(RETRY_MAX):
+                try:
+                    response = self.model.get_embeddings(inputs)
+                    for emb in response:
+                        all_embeddings.append(emb.values)
+                    break  # 成功，跳出重試迴圈
+
+                except Exception as e:
+                    err_str = str(e).lower()
+                    is_retryable = any(keyword in err_str for keyword in [
+                        "429", "quota", "resource exhausted",  # 限流
+                        "503", "socket closed", "unavailable",  # 網路中斷
+                        "deadline exceeded", "timeout",         # 逾時
+                    ])
+
+                    if is_retryable:
+                        wait = RETRY_BASE_WAIT * (2 ** attempt)  # 60 / 120 / 240
+                        logger.warning(
+                            "⚠️  可重試錯誤，第 %d/%d 次重試，等待 %d 秒... (錯誤：%s)",
+                            attempt + 1, RETRY_MAX, wait, e,
+                        )
+                        time.sleep(wait)
+                        if attempt == RETRY_MAX - 1:
+                            logger.error("❌ 重試次數耗盡，拋出例外")
+                            raise
+                    else:
+                        raise  # 不可重試錯誤直接拋出
 
         return np.array(all_embeddings, dtype=np.float32)
 
@@ -390,6 +505,12 @@ class ArticleTagger:
           - tags IS NULL（尚未打標）
           - is_deleted = FALSE
 
+        涵蓋範圍：rss / arxiv / html 全部來源。
+        governance_status 邏輯：
+          - approved  → 打標 ✅
+          - rejected  → 跳過 ❌（未達門檻，不進入知識庫）
+          - duplicate → 跳過 ❌（重複內容不打標）
+
         Returns:
             文章資料列表，每筆為 dict，包含 id / title / content / language
         """
@@ -416,7 +537,7 @@ class ArticleTagger:
         批次更新文章的 tags 欄位。
 
         Args:
-            updates: [{"id": int, "tags": [...]}] 列表
+            updates: [{"id": UUID, "tags": [...]}] 列表
 
         Returns:
             成功更新的筆數
@@ -464,7 +585,7 @@ class ArticleTagger:
         logger.info("  耗時：%.2f 秒", elapsed)
         logger.info("  各標籤命中數：")
         for tag, count in sorted(tag_counter.items(), key=lambda x: -x[1]):
-            logger.info("    %-12s : %d 篇", tag, count)
+            logger.info("    %-15s : %d 篇", tag, count)
         logger.info("=" * 60)
 
     # ──────────────────────────────────────────
@@ -473,17 +594,20 @@ class ArticleTagger:
 
     def run(self) -> None:
         """
-        執行完整語意打標流程。
+        執行完整語意打標流程（含限流）。
 
         步驟：
           1. 撈取待打標文章
-          2. 逐篇向量化並計算相似度
+          2. 逐篇向量化並計算相似度（每篇間隔 ARTICLE_INTERVAL 秒）
           3. Adaptive-K 決定標籤數量
-          4. 批次寫回 tags 至資料庫
+          4. 每 BATCH_SIZE 篇批次寫回資料庫，批次間休息 BATCH_INTERVAL 秒
           5. 輸出統計 log
         """
         start_time = datetime.now(timezone.utc)
         logger.info("====== 語意打標任務開始 %s ======", start_time.isoformat())
+        logger.info("限流設定：每篇間隔 %.1fs｜批次間隔 %.1fs｜429 退避 %ds/%ds/%ds",
+                    ARTICLE_INTERVAL, BATCH_INTERVAL,
+                    RETRY_BASE_WAIT, RETRY_BASE_WAIT * 2, RETRY_BASE_WAIT * 4)
 
         articles = self._fetch_pending_articles()
         if not articles:
@@ -515,11 +639,17 @@ class ArticleTagger:
 
             updates.append({"id": article_id, "tags": matched_tags})
 
+            # 每篇間隔，避免 API 過載
+            time.sleep(ARTICLE_INTERVAL)
+
             if len(updates) >= BATCH_SIZE:
                 written = self._update_tags_batch(updates)
                 logger.info("批次寫入 %d 筆至資料庫", written)
                 updates.clear()
+                logger.info("批次休息 %.1f 秒...", BATCH_INTERVAL)
+                time.sleep(BATCH_INTERVAL)
 
+        # 寫入最後一批
         if updates:
             written = self._update_tags_batch(updates)
             logger.info("最終批次寫入 %d 筆至資料庫", written)
