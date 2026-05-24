@@ -374,6 +374,7 @@ def run_biweekly_pipeline():
       1. dedup（語意去重）→ 標記重複文章
       2. scoring（內容評分）→ approved / rejected
       3. tagging（自動打標）→ approved 文章打標
+      4. sharepoint_trigger → 寄送 JSON 附件觸發 Power Automate
 
     排程：每兩週一 09:00
     """
@@ -382,7 +383,7 @@ def run_biweekly_pipeline():
     logger.info("=" * 50)
 
     # ── Step 1：語意去重 ──
-    logger.info("Step 1／3：開始語意去重...")
+    logger.info("Step 1／4：開始語意去重...")
     try:
         from dedup import run_deduplication
         run_deduplication()
@@ -391,7 +392,7 @@ def run_biweekly_pipeline():
     logger.info("去重完成")
 
     # ── Step 2：內容評分 ──
-    logger.info("Step 2／3：開始內容評分...")
+    logger.info("Step 2／4：開始內容評分...")
     try:
         from scoring import run_scoring
         run_scoring()
@@ -400,7 +401,7 @@ def run_biweekly_pipeline():
     logger.info("評分完成")
 
     # ── Step 3：自動打標 ──
-    logger.info("Step 3／3：開始自動打標...")
+    logger.info("Step 3／4：開始自動打標...")
     tagger = ArticleTagger()
     try:
         tagger.run()
@@ -409,6 +410,15 @@ def run_biweekly_pipeline():
     finally:
         tagger.close()
     logger.info("打標完成")
+
+    # ── Step 4：SharePoint 同步 ──
+    logger.info("Step 4／4：開始同步至 SharePoint...")
+    try:
+        from sharepoint_trigger import run_sharepoint_sync
+        run_sharepoint_sync()
+    except Exception as e:
+        logger.error(f"SharePoint 同步失敗：{e}")
+    logger.info("SharePoint 同步完成")
 
     logger.info("=" * 50)
     logger.info("兩週治理流程完成")
