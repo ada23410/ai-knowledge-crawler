@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 # 來源等級基礎分
 TIER_BASE_SCORE = {
-    'A': 0.80,   # 官方 / 研究機構：最可信
+    'A': 0.65,   # 官方 / 研究機構：最可信
     'B': 0.50,   # 產業媒體：次之
     'C': 0.60,   # 機構 / 政策：在地化關鍵
 }
@@ -291,6 +291,9 @@ PENALTY_KEYWORDS_EN = {
     "click here":    -0.10,
     "subscribe":     -0.05,
     "newsletter":    -0.05,
+    "most influential":  -0.10,   # 排行榜類
+    "election safeguard": -0.12,  # 選舉安全類
+    "startup forum":     -0.08,   # 新創活動類
 }
 
 PENALTY_KEYWORDS_ZH = {

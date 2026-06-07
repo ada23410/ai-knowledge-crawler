@@ -115,16 +115,17 @@ TAG_DEFINITIONS: dict[str, dict] = {
         ),
         "synonyms": [
             # English
-            "underwriting", "claims", "claims processing", "fraud detection",
-            "insurance AI", "InsurTech", "medical document", "risk assessment",
-            "policy", "actuarial", "loss ratio", "claims automation",
-            "straight through processing", "STP", "injury assessment",
-            "medical review", "subrogation", "reinsurance",
+            "underwriting", "claims processing", "fraud detection",
+            "insurance AI", "InsurTech", "actuarial", "loss ratio",
+            "claims automation", "injury assessment",  # ← 移除 STP, straight through processing, risk assessment
+            "subrogation", "reinsurance",
+            "insurance underwriting", "claims adjudication",
             # 繁體中文
-            "核保", "理賠", "保險 AI", "詐欺偵測", "醫療文件",
-            "風險評估", "保單", "精算", "理賠自動化", "核保決策",
-            "傷害評估", "醫療審查", "代位求償", "再保險",
+            "核保", "理賠", "保險 AI", "詐欺偵測",
+            "精算", "理賠自動化", "核保決策",
+            "代位求償", "再保險",
             "核保輔助", "理賠審核", "保險科技",
+            # 移除：傷害評估
         ],
     },
 
@@ -182,15 +183,14 @@ TAG_DEFINITIONS: dict[str, dict] = {
             # English
             "AI literacy", "AI training", "upskilling", "reskilling",
             "workforce training", "learning and development", "L&D",
-            "AI education", "course", "curriculum", "e-learning",
-            "learning platform", "skill development", "competency",
-            "certification", "training program", "workshop", "bootcamp",
-            "talent development", "AI skill", "corporate training",
+            "corporate training", "employee training", "talent development",
+            "AI skill", "training program", "competency framework",
+            "skill development", "certification",
             # 繁體中文
-            "AI 素養", "員工訓練", "教育訓練", "培訓", "課程",
-            "學習資源", "技能提升", "再培訓", "內訓", "學習平台",
-            "技能地圖", "認證", "工作坊", "訓練計畫", "人才培育",
-            "AI 教育", "數位學習", "線上課程", "學習發展",
+            "AI 素養", "員工訓練", "教育訓練", "培訓",
+            "技能提升", "再培訓", "內訓",
+            "技能地圖", "認證", "訓練計畫", "人才培育",
+            "學習發展",
         ],
     },
 

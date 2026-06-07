@@ -16,7 +16,7 @@ Official,Microsoft research blog,https://www.microsoft.com/en-us/research/blog/r
 Official,Claude Blog,https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_claude.xml,en,News,Claude 官方網站。,A,rss,true
 Institution,arXiv(category:CS.AI),http://export.arxiv.org/api/query?search_query=cat:cs.AI,en,Research,全球科學家學術資料庫，收錄電腦科學、物理學、數學、定向科學、金融學相關學術資料庫。,A,arxiv,true
 Media,數位時代(Business Next),https://www.bnext.com.tw/rss,zh,News,台灣科技與數位轉型新聞。,B,rss,false
-Media,未來商務(Future Commerce),https://rss.bnextmedia.com.tw/feed/fc,B,rss,true
+Media,未來商務(Future Commerce),https://rss.bnextmedia.com.tw/feed/fc,zh,News,未來商務媒體，聚焦商業科技與數位轉型趨勢。,B,rss,true
 Media,科技報橘(TechOrange),https://techorange.com/rss,zh,News,新創、AI、科技趨勢評論。,B,rss,true
 Official,Cloudflare blog,https://blog.cloudflare.com/rss/,en,News,Cloudflare 官方技術部落格，涵蓋 AI、網路安全、邊緣運算與效能最佳化。,A,rss,true
 Institution,ML CMU,https://blog.ml.cmu.edu/feed/,en,Research,CMU 機器學習系官方部落格，發布前沿研究、師生專題與學術活動。,C,rss,true
@@ -25,3 +25,5 @@ Institution,MIT News (category: AI),http://news.mit.edu/rss/topic/artificial-int
 Media,AI News,https://www.artificialintelligence-news.com/rss,en,News,國際AI新聞媒體，涵蓋企業動態、政策法規與產業應用。,B,rss,true
 Institution,IEEE spectrum,https://spectrum.ieee.org/topic/artificial-intelligence/feed,en,Research,AI 技術工程與產業分析。,C,rss,true
 Institution,李宏毅教授​(公開課程教材),https://speech.ee.ntu.edu.tw/~hylee/ml/2026-spring.php,zh,Research,台大機器學習完整公開課程。,C,skip,false
+Media,商業週刊,https://cmsapi.businessweekly.com.tw/?CategoryId=24612ec9-2ac5-4e1f-ab04-310879f89b33&TemplateId=8E19CF43-50E5-4093-B72D-70A912962D55,zh,News,台灣最具影響力財經商業週刊，涵蓋企業策略、產業趨勢與科技應用。,B,rss,true
+Media,遠見雜誌,https://www.gvm.com.tw/rss,zh,News,台灣財經趨勢媒體，涵蓋企業創新、科技應用與產業調查，設有 AI 專區。,B,rss,true

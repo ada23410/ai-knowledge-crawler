@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 # 設定區
 DEDUP_THRESHOLD = float(os.getenv("DUPLICATE_THRESHOLD", "0.15"))
-DAYS_TO_CHECK   = int(os.getenv("DAYS_TO_CHECK_DUPLICATE", "14"))   # ✅ 改為 14 天
+DAYS_TO_CHECK   = int(os.getenv("DAYS_TO_CHECK_DUPLICATE", "7"))   
 
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCP_REGION     = os.getenv("GCP_REGION", "us-central1")

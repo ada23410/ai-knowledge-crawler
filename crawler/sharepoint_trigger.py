@@ -75,7 +75,6 @@ def fetch_approved_articles(conn) -> list[dict]:
               AND a.is_deleted         = FALSE
               AND a.sharepoint_synced  = FALSE
             ORDER BY a.published_at DESC
-            LIMIT 5
         """)
         rows    = cur.fetchall()
         columns = [
